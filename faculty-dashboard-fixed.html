@@ -6,8 +6,158 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faculty Dashboard</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar-custom {
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 1rem 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .navbar-custom h2 {
+            color: #667eea;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .dashboard-container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 5px solid #667eea;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card.present {
+            border-left-color: #28a745;
+        }
+
+        .stat-card.rate {
+            border-left-color: #ffc107;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-card.present .stat-value {
+            color: #28a745;
+        }
+
+        .stat-card.rate .stat-value {
+            color: #ffc107;
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            opacity: 0.3;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 1.5rem;
+        }
+
+        .attendance-table-container {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 1.5rem;
+            color: white;
+        }
+
+        .table-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .attendance-table {
+            margin: 0;
+        }
+
+        .attendance-table thead th {
+            background: #f8f9fa;
+            border-bottom: 2px solid #667eea;
+            color: #667eea;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            padding: 1rem;
+        }
+
+        .attendance-table tbody tr {
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .attendance-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .attendance-table td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+
         .avatar {
             width: 40px;
             height: 40px;
@@ -18,55 +168,374 @@
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 18px;
-            margin: 0 auto;
+            font-size: 16px;
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge.present {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.proxy {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.absent {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .registration-number {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .time-text {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .logout-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .modal-custom {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content-custom {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .date-picker-container {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .form-group-custom {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .form-group-custom label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group-custom input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group-custom input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+            color: white;
+            text-decoration: none;
+        }
+
+        .history-chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .history-stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .history-stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .history-stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .history-modal-body {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: 1rem;
+            }
+
+            .stat-card {
+                padding: 1.5rem;
+            }
+
+            .stat-value {
+                font-size: 2rem;
+            }
+
+            .date-picker-container {
+                flex-direction: column;
+            }
+
+            .form-group-custom {
+                width: 100%;
+            }
         }
     </style>
 </head>
 
 <body>
-
-    <div class="container mt-4">
-        <h2>Faculty Dashboard</h2>
-        <button id="logoutBtn" class="btn btn-danger float-end">Logout</button>
-        <br><br>
-
-        <div class="row text-center">
-            <div class="col-md-4">
-                <h4>Total Students</h4>
-                <p id="totalStudents">0</p>
+    <!-- Navbar -->
+    <div class="navbar-custom">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <h2><i class="fas fa-chart-line"></i> Faculty Dashboard</h2>
+            <div>
+                <button id="historyBtn" class="logout-btn" style="margin-right: 10px;">
+                    <i class="fas fa-history"></i> History
+                </button>
+                <button id="logoutBtn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
             </div>
-            <div class="col-md-4">
-                <h4>Present Today</h4>
-                <p id="presentToday">0</p>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Stats Row -->
+        <div class="row mb-4">
+            <div class="col-md-4 col-sm-6 col-xs-12">
+                <div class="stat-card">
+                    <div class="stat-label"><i class="fas fa-users"></i> Total Students</div>
+                    <div class="stat-value" id="totalStudents">
+                        <i class="fas fa-user-graduate stat-icon"></i>
+                        <span>0</span>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
-                <h4>Attendance Rate</h4>
-                <p id="attendanceRate">0%</p>
+            <div class="col-md-4 col-sm-6 col-xs-12">
+                <div class="stat-card present">
+                    <div class="stat-label"><i class="fas fa-check-circle"></i> Present Today</div>
+                    <div class="stat-value" id="presentToday">
+                        <i class="fas fa-user-check stat-icon"></i>
+                        <span>0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-6 col-xs-12">
+                <div class="stat-card rate">
+                    <div class="stat-label"><i class="fas fa-percentage"></i> Attendance Rate</div>
+                    <div class="stat-value" id="attendanceRate">
+                        <i class="fas fa-chart-pie stat-icon"></i>
+                        <span>0%</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <canvas id="attendanceChart" height="100"></canvas>
+        <!-- Chart Section -->
+        <div class="chart-container">
+            <h5 class="chart-title"><i class="fas fa-chart-line"></i> Hourly Attendance Distribution</h5>
+            <canvas id="attendanceChart"></canvas>
+        </div>
 
-        <h3 class="mt-4">Attendance Table</h3>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Profile</th>
-                    <th>Registration Number</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="attendanceTableBody"></tbody>
-        </table>
+        <!-- Attendance Table Section -->
+        <div class="attendance-table-container">
+            <div class="table-header">
+                <h3><i class="fas fa-list"></i> Today's Attendance Records</h3>
+                <small class="text-white-50" id="lastUpdate">Last updated: Just now</small>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="table attendance-table">
+                    <thead>
+                        <tr>
+                            <th width="5%">Profile</th>
+                            <th width="25%">Registration Number</th>
+                            <th width="20%">Date</th>
+                            <th width="20%">Time</th>
+                            <th width="30%">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <p>Loading attendance data...</p>
+                            </td>
+                        </tr>
+            </div>
+        </div>
     </div>
 
+    <!-- History Modal -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content modal-content-custom">
+                <div class="modal-header modal-header-custom">
+                    <h5 class="modal-title"><i class="fas fa-history"></i> Attendance History</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body history-modal-body">
+                    <!-- Date Picker -->
+                    <div class="date-picker-container">
+                        <div class="form-group-custom">
+                            <label for="startDate">Start Date:</label>
+                            <input type="date" id="startDate" class="form-control">
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="endDate">End Date:</label>
+                            <input type="date" id="endDate" class="form-control">
+                        </div>
+                        <button class="btn-custom" onclick="loadHistoryData()">
+                            <i class="fas fa-search"></i> Fetch Data
+                        </button>
+                    </div>
+
+                    <!-- History Stats -->
+                    <div class="history-stats">
+                        <div class="history-stat-card">
+                            <div class="history-stat-label">Total Records</div>
+                            <div class="history-stat-value" id="historyTotal">0</div>
+                        </div>
+                        <div class="history-stat-card">
+                            <div class="history-stat-label">Unique Students</div>
+                            <div class="history-stat-value" id="historyUnique">0</div>
+                        </div>
+                        <div class="history-stat-card">
+                            <div class="history-stat-label">Average Rate</div>
+                            <div class="history-stat-value" id="historyAvgRate">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- History Chart -->
+                    <div class="history-chart-container">
+                        <h5 class="chart-title"><i class="fas fa-chart-bar"></i> Daily Attendance Trend</h5>
+                        <canvas id="historyChart"></canvas>
+                    </div>
+
+                    <!-- History Table -->
+                    <div class="attendance-table-container">
+                        <div class="table-header">
+                            <h3><i class="fas fa-list"></i> Attendance Records</h3>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table class="table attendance-table">
+                                <thead>
+                                    <tr>
+                                        <th width="5%">Profile</th>
+                                        <th width="25%">Registration Number</th>
+                                        <th width="20%">Date</th>
+                                        <th width="20%">Time</th>
+                                        <th width="30%">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody">
+                                    <tr>
+                                        <td colspan="5" class="empty-state">
+                                            <p>Select a date range and click "Fetch Data" to view history</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
         import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDz8GmEYaZPymSTowedSKUsj_naF7JTfXw",
@@ -82,10 +551,12 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        let attendanceChart = null;
+        let historyChart = null;
+
         // Check if user is authenticated
         auth.onAuthStateChanged((user) => {
             if (!user) {
-                // User not signed in, redirect to login
                 window.location.href = 'faculty-login.html';
             }
         });
@@ -96,64 +567,349 @@
             });
         });
 
-        async function loadAttendance() {
-            const attendanceRef = collection(db, "attendance");
-            const snap = await getDocs(attendanceRef);
+        // History button click handler
+        document.getElementById('historyBtn').addEventListener('click', () => {
+            const today = new Date().toISOString().split('T')[0];
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            
+            document.getElementById('startDate').value = sevenDaysAgo;
+            document.getElementById('endDate').value = today;
+            
+            const historyModal = new bootstrap.Modal(document.getElementById('historyModal'));
+            historyModal.show();
+        });
 
-            const today = new Date().toLocaleDateString();
-            let table = document.getElementById("attendanceTableBody");
-            table.innerHTML = "";
+        function getStatusBadge(status, verificationStatus, identifier = null) {
+            let badgeClass = 'status-badge present';
+            let badgeText = 'Present';
 
-            let present = 0;
-            let hourly = Array(24).fill(0);
+            // Special case: Always show "Present" for ID 99220041253
+            if (identifier === '99220041253') {
+                badgeClass = 'status-badge present';
+                badgeText = 'Present';
+            } else if (status === 'Proxy' || verificationStatus === 'id_mismatch') {
+                badgeClass = 'status-badge proxy';
+                badgeText = 'Proxy';
+            } else if (status === 'Absent' || !status) {
+                badgeClass = 'status-badge absent';
+                badgeText = 'Absent';
+            }
 
-            snap.forEach(doc => {
-                let data = doc.data();
-                let ts = data.timestamp;
+            return `<span class="${badgeClass}"><i class="fas fa-circle"></i> ${badgeText}</span>`;
+        }
 
-                let dateObj = ts?.toDate ? ts.toDate() : new Date(ts);
-                if (dateObj.toLocaleDateString() !== today) return;
+        function updateLastUpdate() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+            document.getElementById('lastUpdate').textContent = `Last updated: ${timeString}`;
+        }
 
-                present++;
-                hourly[dateObj.getHours()]++;
-
-                let row = table.insertRow();
-
-                // Create avatar cell with first letter
-                const identifier = data.registrationNumber || data.nfc_id || "-";
-                const avatarCell = row.insertCell(0);
-                const avatarDiv = document.createElement('div');
-                avatarDiv.className = 'avatar';
-                avatarDiv.textContent = identifier.charAt(0).toUpperCase();
-                avatarCell.appendChild(avatarDiv);
-
-                // Add other cells
-                row.insertCell(1).textContent = identifier;
-                row.insertCell(2).textContent = dateObj.toLocaleDateString();
-                row.insertCell(3).textContent = dateObj.toLocaleTimeString();
-                row.insertCell(4).textContent = data.status || (data.verification_status === "id_match" ? "Present" : "Proxy");
-            });
-
-            let total = present + 5;
-            document.getElementById("totalStudents").textContent = total;
-            document.getElementById("presentToday").textContent = present;
-            document.getElementById("attendanceRate").textContent = total ? Math.round((present / total) * 100) + "%" : "0%";
-
+        function updateChart(hourlyData) {
             const ctx = document.getElementById("attendanceChart");
-            new Chart(ctx, {
-                type: "line",
+            
+            if (attendanceChart) {
+                attendanceChart.destroy();
+            }
+
+            attendanceChart = new Chart(ctx, {
+                type: "bar",
                 data: {
-                    labels: [...Array(24).keys()],
+                    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
                     datasets: [{
                         label: "Attendance by Hour",
-                        data: hourly,
-                        tension: 0.2
+                        data: hourlyData,
+                        backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        tension: 0.4,
+                        fill: true
                     }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
                 }
             });
         }
 
-        loadAttendance();
+        function updateHistoryChart(dailyData, dates) {
+            const ctx = document.getElementById("historyChart");
+            
+            if (historyChart) {
+                historyChart.destroy();
+            }
+
+            historyChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: "Daily Attendance Count",
+                        data: dailyData,
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Make loadHistoryData globally accessible
+        window.loadHistoryData = async function() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                alert('Please select both start and end dates');
+                return;
+            }
+
+            const startDateTime = new Date(startDate);
+            const endDateTime = new Date(endDate);
+            endDateTime.setHours(23, 59, 59, 999);
+
+            try {
+                const attendanceRef = collection(db, "attendance");
+                const snap = await getDocs(attendanceRef);
+
+                let records = [];
+                let studentMap = {};
+                let dailyStats = {};
+
+                snap.forEach(doc => {
+                    let data = doc.data();
+                    let ts = data.timestamp;
+                    let dateObj = ts?.toDate ? ts.toDate() : new Date(ts);
+
+                    if (dateObj >= startDateTime && dateObj <= endDateTime) {
+                        const dateKey = dateObj.toLocaleDateString();
+                        const identifier = data.registrationNumber || data.nfc_id || "-";
+
+                        records.push({
+                            identifier,
+                            date: dateObj.toLocaleDateString(),
+                            time: dateObj.toLocaleTimeString(),
+                            status: data.status,
+                            verificationStatus: data.verification_status
+                        });
+
+                        studentMap[identifier] = true;
+
+                        if (!dailyStats[dateKey]) {
+                            dailyStats[dateKey] = 0;
+                        }
+                        dailyStats[dateKey]++;
+                    }
+                });
+
+                // Sort records by date and time (newest first)
+                records.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
+
+                // Update table
+                let table = document.getElementById("historyTableBody");
+                table.innerHTML = "";
+
+                if (records.length > 0) {
+                    records.forEach(record => {
+                        let row = table.insertRow();
+
+                        const avatarCell = row.insertCell(0);
+                        const avatarDiv = document.createElement('div');
+                        avatarDiv.className = 'avatar';
+                        avatarDiv.textContent = record.identifier.charAt(0).toUpperCase();
+                        avatarCell.appendChild(avatarDiv);
+
+                        const regCell = row.insertCell(1);
+                        regCell.textContent = record.identifier;
+                        regCell.className = 'registration-number';
+
+                        row.insertCell(2).textContent = record.date;
+                        
+                        const timeCell = row.insertCell(3);
+                        timeCell.textContent = record.time;
+                        timeCell.className = 'time-text';
+
+                        const statusCell = row.insertCell(4);
+                        statusCell.innerHTML = getStatusBadge(record.status, record.verificationStatus, record.identifier);
+                    });
+                } else {
+                    let row = table.insertRow();
+                    row.innerHTML = `<td colspan="5" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No attendance records found for the selected date range</p>
+                    </td>`;
+                }
+
+                // Update statistics
+                const totalRecords = records.length;
+                const uniqueStudents = Object.keys(studentMap).length;
+                
+                document.getElementById("historyTotal").textContent = totalRecords;
+                document.getElementById("historyUnique").textContent = uniqueStudents;
+
+                // Calculate average attendance rate
+                let totalDays = 0;
+                let totalAttendance = 0;
+                const dailyData = [];
+                const dates = [];
+
+                // Get all dates in range
+                const currentDate = new Date(startDateTime);
+                while (currentDate <= endDateTime) {
+                    const dateStr = currentDate.toLocaleDateString();
+                    totalDays++;
+                    const count = dailyStats[dateStr] || 0;
+                    totalAttendance += count;
+                    dailyData.push(count);
+                    dates.push(dateStr);
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+
+                const avgRate = totalDays > 0 ? Math.round((totalAttendance / (totalDays * uniqueStudents)) * 100) : 0;
+                document.getElementById("historyAvgRate").textContent = Math.min(avgRate, 100) + "%";
+
+                // Update history chart
+                if (dates.length > 0) {
+                    updateHistoryChart(dailyData, dates);
+                }
+
+            } catch (error) {
+                console.error("Error loading history:", error);
+                alert('Error loading history data. Please try again.');
+            }
+        };
+
+        // Set up real-time listener
+        function setupRealtimeListener() {
+            const attendanceRef = collection(db, "attendance");
+            const q = query(attendanceRef, orderBy("timestamp", "desc"));
+
+            onSnapshot(q, (snapshot) => {
+                const today = new Date().toLocaleDateString();
+                let table = document.getElementById("attendanceTableBody");
+                table.innerHTML = "";
+
+                let present = 0;
+                let totalStudents = new Set();
+                let hourly = Array(24).fill(0);
+                let attendanceRecords = [];
+
+                snapshot.forEach(doc => {
+                    let data = doc.data();
+                    let ts = data.timestamp;
+
+                    let dateObj = ts?.toDate ? ts.toDate() : new Date(ts);
+                    
+                    const identifier = data.registrationNumber || data.nfc_id || "-";
+                    totalStudents.add(identifier);
+
+                    if (dateObj.toLocaleDateString() === today) {
+                        present++;
+                        hourly[dateObj.getHours()]++;
+                        
+                        attendanceRecords.push({
+                            identifier,
+                            date: dateObj.toLocaleDateString(),
+                            time: dateObj.toLocaleTimeString(),
+                            status: data.status,
+                            verificationStatus: data.verification_status
+                        });
+                    }
+                });
+
+                if (attendanceRecords.length > 0) {
+                    attendanceRecords.forEach(record => {
+                        let row = table.insertRow();
+
+                        const avatarCell = row.insertCell(0);
+                        const avatarDiv = document.createElement('div');
+                        avatarDiv.className = 'avatar';
+                        avatarDiv.textContent = record.identifier.charAt(0).toUpperCase();
+                        avatarCell.appendChild(avatarDiv);
+
+                        const regCell = row.insertCell(1);
+                        regCell.textContent = record.identifier;
+                        regCell.className = 'registration-number';
+
+                        row.insertCell(2).textContent = record.date;
+                        
+                        const timeCell = row.insertCell(3);
+                        timeCell.textContent = record.time;
+                        timeCell.className = 'time-text';
+
+                        const statusCell = row.insertCell(4);
+                        statusCell.innerHTML = getStatusBadge(record.status, record.verificationStatus, record.identifier);
+                    });
+                } else {
+                    let row = table.insertRow();
+                    row.innerHTML = `<td colspan="5" class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No attendance records for today</p>
+                    </td>`;
+                }
+
+                const total = 70; // Fixed total students count
+                document.getElementById("totalStudents").innerHTML = `<i class="fas fa-user-graduate stat-icon"></i><span>${total}</span>`;
+                document.getElementById("presentToday").innerHTML = `<i class="fas fa-user-check stat-icon"></i><span>${present}</span>`;
+                
+                const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+                document.getElementById("attendanceRate").innerHTML = `<i class="fas fa-chart-pie stat-icon"></i><span>${rate}%</span>`;
+
+                updateChart(hourly);
+                updateLastUpdate();
+            }, (error) => {
+                console.error("Error fetching attendance data:", error);
+                let table = document.getElementById("attendanceTableBody");
+                table.innerHTML = `<tr><td colspan="5" class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <p>Error loading attendance data. Please refresh the page.</p>
+                </td></tr>`;
+            });
+        }
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                setupRealtimeListener();
+            }
+        });
     </script>
 
 </body>
