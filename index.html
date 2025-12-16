@@ -330,9 +330,9 @@
             // Update NFC debug info
             document.getElementById('nfcDebug').textContent = currentNfcId || 'No NFC ID';
 
-            try {
-                // Call LOCAL face recognition API (Use Computer IP for phone access)
-                const response = await fetch('http://172.20.97.194:5001/verify', {
+                try {
+                // Call face recognition API on the same server (Flask main.py)
+                const response = await fetch('/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
