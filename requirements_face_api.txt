@@ -3,6 +3,7 @@ flask-cors
 torch
 torchvision
 ultralytics
-opencv-python
+opencv-python<4.10
 pillow
-numpy
+numpy<2
+onnxruntime

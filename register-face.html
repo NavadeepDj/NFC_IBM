@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register Face</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-xl mx-auto py-8 px-4">
+    <h1 class="text-2xl font-bold mb-4">Register Face</h1>
+    <p class="text-sm text-gray-600 mb-4">
+      Enter Student ID, capture your face, and submit to enroll.
+    </p>
+    <label class="block mb-2 text-sm font-medium text-gray-700">Student ID</label>
+    <input id="studentId" type="text" class="w-full border rounded px-3 py-2 mb-4" placeholder="99220041253" />
+
+    <div class="mb-4">
+      <video id="video" autoplay class="w-full rounded shadow border"></video>
+      <canvas id="canvas" class="hidden"></canvas>
+    </div>
+
+    <div class="flex gap-3 mb-4">
+      <button id="startBtn" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Start Camera</button>
+      <button id="captureBtn" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" disabled>Capture & Enroll</button>
+    </div>
+
+    <pre id="status" class="bg-white rounded p-3 text-sm border">Status: Idle</pre>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const startBtn = document.getElementById('startBtn');
+    const captureBtn = document.getElementById('captureBtn');
+    const statusBox = document.getElementById('status');
+    let stream = null;
+
+    function setStatus(msg) { statusBox.textContent = msg; }
+
+    startBtn.onclick = async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        captureBtn.disabled = false;
+        setStatus('Camera started. Ready to capture.');
+      } catch (e) {
+        setStatus('Camera error: ' + e);
+      }
+    };
+
+    captureBtn.onclick = async () => {
+      const studentId = document.getElementById('studentId').value.trim();
+      if (!studentId) {
+        setStatus('Please enter Student ID');
+        return;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      setStatus('Enrolling...');
+      try {
+        const resp = await fetch('/enroll', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: studentId, image: dataUrl })
+        });
+        const result = await resp.json();
+        setStatus(JSON.stringify(result, null, 2));
+      } catch (e) {
+        setStatus('Enroll error: ' + e);
+      }
+    };
+  </script>
+</body>
+</html>
+

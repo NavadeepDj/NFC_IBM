@@ -28,6 +28,26 @@
             box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
         }
 
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         #cameraModal {
             display: none;
             position: fixed;
@@ -56,19 +76,12 @@
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
+            to { transform: rotate(360deg); }
         }
 
         .spinner {
@@ -79,27 +92,6 @@
             height: 40px;
             animation: spin 0.8s linear infinite;
             margin: 20px auto;
-        }
-
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
         }
 
         .countdown {
@@ -133,24 +125,16 @@
         </div>
 
         <!-- Controls -->
-        <div class="flex justify-center gap-4 mb-4">
+        <div class="flex justify-center gap-4 mb-8">
             <button id="startScan"
                 class="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium shadow-lg hover:bg-blue-700 hover:shadow-xl transition-all duration-200 transform hover:scale-105">
                 📡 Start NFC Scan
             </button>
         </div>
 
-        <!-- NFC-only toggle -->
-        <div class="flex justify-center mb-8">
-            <label class="flex items-center gap-2 text-gray-700 bg-white px-4 py-2 rounded-lg shadow-sm">
-                <input id="nfcOnly" type="checkbox" class="h-4 w-4">
-                <span class="text-sm font-medium">Mark Present on NFC only (skip face verification)</span>
-            </label>
-        </div>
-
         <!-- Camera Modal -->
         <div id="cameraModal">
-            <button onclick="cleanup()"
+            <button onclick="closeCamera()"
                 class="absolute top-4 right-4 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-red-700 z-50 font-bold text-xl">
                 ✕ Close
             </button>
@@ -215,13 +199,16 @@
         let isProcessing = false;
         let currentNfcId = null;
         let stream = null;
+        const SIMILARITY_THRESHOLD = 65; // 65% threshold for face matching
 
         // DOM Elements
         const startButton = document.getElementById('startScan');
         const status = document.getElementById('status');
         const cameraModal = document.getElementById('cameraModal');
         const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
         const verificationStatus = document.getElementById('verificationStatus');
+        const countdownEl = document.getElementById('countdown');
 
         // Start NFC scanning
         startButton.addEventListener('click', async () => {
@@ -260,16 +247,9 @@
                         status.className = 'text-lg font-medium text-green-600 bg-green-50 px-6 py-3 rounded-lg shadow-sm inline-block';
                         document.getElementById('nfcDebug').textContent = currentNfcId || 'No NFC ID';
 
-                        // If NFC-only mode enabled, mark present immediately
-                        const nfcOnly = document.getElementById('nfcOnly')?.checked;
-                        if (nfcOnly) {
-                            verificationStatus.textContent = '✅ Present (NFC only mode)';
-                            await processAttendance(true);
-                            return;
-                        }
-
-                        // Otherwise continue with camera verification
-                        await startVerification();
+                        // Start face verification
+                        await startFaceVerification();
+                        
                     } catch (error) {
                         console.error('NFC reading error:', error);
                         status.innerHTML = '❌ Error reading NFC card';
@@ -286,102 +266,145 @@
             }
         });
 
-        // Start face verification process
-        async function startVerification() {
+        // Start face verification with camera
+        async function startFaceVerification() {
             try {
                 verificationStatus.textContent = '📸 Starting camera...';
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: 1920, height: 1080 }
+                    video: { width: 1920, height: 1080, facingMode: 'user' }
                 });
                 video.srcObject = stream;
                 cameraModal.style.display = 'block';
 
+                // Wait for video to be ready and playing
+                await new Promise(resolve => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve();
+                    };
+                });
+
+                // Additional delay to ensure frames are rendering
+                await new Promise(resolve => setTimeout(resolve, 500));
+
                 verificationStatus.textContent = '👤 Position your face in the camera';
-
-                // Countdown from 3 to 1
-                const countdownEl = document.getElementById('countdown');
+                
+                // Countdown from 3
                 countdownEl.style.display = 'block';
-
                 for (let i = 3; i > 0; i--) {
                     countdownEl.textContent = i;
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
-
                 countdownEl.style.display = 'none';
+
                 verificationStatus.innerHTML = '<div class="spinner"></div><p class="mt-2">🔍 Verifying your identity...</p>';
 
-                await verifyFace();
+                // Small delay before capture to ensure latest frame
+                await new Promise(resolve => setTimeout(resolve, 200));
+
+                // Capture and verify face
+                await captureFace();
+                
             } catch (error) {
                 console.error('Camera error:', error);
-                verificationStatus.textContent = '❌ Camera access denied or unavailable';
+                verificationStatus.textContent = '❌ Camera access denied';
                 status.innerHTML = '❌ Unable to access camera. Please allow camera permissions.';
                 status.className = 'text-lg font-medium text-red-600 bg-red-50 px-6 py-3 rounded-lg shadow-sm inline-block';
-                setTimeout(cleanup, 3000);
+                await processAttendance(false, 'Camera access denied');
+                setTimeout(closeCamera, 3000);
             }
         }
 
-        // Verify face using server
-        async function verifyFace() {
-            const canvas = document.getElementById('canvas');
-            canvas.width = 1920;
-            canvas.height = 1080;
+        // Capture face and verify with ArcFace
+        async function captureFace() {
+            // Set canvas size to match actual video dimensions
+            canvas.width = video.videoWidth || 1920;
+            canvas.height = video.videoHeight || 1080;
             canvas.getContext('2d').drawImage(video, 0, 0);
-
-            // Update NFC debug info
-            document.getElementById('nfcDebug').textContent = currentNfcId || 'No NFC ID';
+            const imageData = canvas.toDataURL('image/jpeg');
 
             try {
-                // Call LOCAL face recognition API (Use Computer IP for phone access)
-                const response = await fetch('http://172.20.97.194:5001/verify', {
+                // Call backend /verify endpoint
+                const response = await fetch('/verify', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        image: canvas.toDataURL('image/jpeg'),
+                        image: imageData,
                         nfc_id: currentNfcId
                     })
                 });
 
                 const result = await response.json();
+                
+                // Update debug info
+                document.getElementById('apiDebug').textContent = JSON.stringify(result, null, 2);
 
-                // Update API debug info
-                document.getElementById('apiDebug').textContent =
-                    JSON.stringify(result, null, 2);
-
-                if (result.success && result.detected_persons && result.detected_persons.length > 0) {
-                    const detectedId = String(result.detected_persons[0].class);
-                    const nfcIdString = String(currentNfcId);
-
-                    console.log('Detected ID:', detectedId);
-                    console.log('NFC ID:', nfcIdString);
-
-                    const isMatch = detectedId === nfcIdString;
-
-                    if (isMatch) {
-                        verificationStatus.innerHTML = '✅ <strong>VERIFIED!</strong><br/>Face matches NFC card';
-                        status.innerHTML = `✅ Attendance marked for student <strong>${currentNfcId}</strong>`;
-                        status.className = 'text-lg font-medium text-green-600 bg-green-50 px-6 py-3 rounded-lg shadow-sm inline-block';
-                    } else {
-                        verificationStatus.innerHTML = `❌ <strong>MISMATCH!</strong><br/>Face ID: ${detectedId} ≠ NFC ID: ${nfcIdString}`;
-                        status.innerHTML = '⚠️ Invalid attempt detected! Face does not match NFC card.';
-                        status.className = 'text-lg font-medium text-red-600 bg-red-50 px-6 py-3 rounded-lg shadow-sm inline-block';
-                    }
-
-                    await processAttendance(isMatch);
-                } else {
-                    verificationStatus.innerHTML = '❌ <strong>NO FACE DETECTED</strong><br/>Please ensure face is visible';
-                    status.innerHTML = '⚠️ No face detected in the camera';
+                if (!result.success) {
+                    verificationStatus.innerHTML = '❌ <strong>NO FACE DETECTED</strong><br/>Please try again';
+                    status.innerHTML = '⚠️ No face detected in the image';
                     status.className = 'text-lg font-medium text-orange-600 bg-orange-50 px-6 py-3 rounded-lg shadow-sm inline-block';
-                    await processAttendance(false);
+                    await processAttendance(false, 'No face detected');
+                    setTimeout(closeCamera, 3000);
+                    return;
                 }
+
+                // Extract verification results
+                const matchedId = result.matched_id ? String(result.matched_id) : null;
+                const similarity = result.similarity || 0;
+                const similarityPct = result.similarity_percent || (similarity * 100);
+                
+                // Check if face matches any enrolled person
+                if (!matchedId) {
+                    verificationStatus.innerHTML = `❌ <strong>NOT REGISTERED</strong><br/>Please register your face first`;
+                    status.innerHTML = `⚠️ Face not found in database. Please register at <a href="/register-face" class="underline">Register Page</a>`;
+                    status.className = 'text-lg font-medium text-orange-600 bg-orange-50 px-6 py-3 rounded-lg shadow-sm inline-block';
+                    await processAttendance(false, 'Not registered');
+                    setTimeout(closeCamera, 5000);
+                    return;
+                }
+
+                // Check if similarity meets threshold
+                if (similarityPct < SIMILARITY_THRESHOLD) {
+                    verificationStatus.innerHTML = `❌ <strong>LOW CONFIDENCE</strong><br/>Matched ID: ${matchedId}<br/>Similarity: ${similarityPct.toFixed(1)}% (threshold: ${SIMILARITY_THRESHOLD}%)`;
+                    status.innerHTML = `⚠️ Face similarity too low. Matched: ${matchedId}, Similarity: ${similarityPct.toFixed(1)}%`;
+                    status.className = 'text-lg font-medium text-orange-600 bg-orange-50 px-6 py-3 rounded-lg shadow-sm inline-block';
+                    await processAttendance(false, `Low similarity: ${similarityPct.toFixed(1)}%`);
+                    setTimeout(closeCamera, 5000);
+                    return;
+                }
+
+                // Compare NFC ID with matched face ID
+                const nfcIdStr = String(currentNfcId);
+                const matchedIdStr = String(matchedId);
+
+                if (nfcIdStr === matchedIdStr) {
+                    // MATCH: NFC ID == Face ID
+                    verificationStatus.innerHTML = `✅ <strong>VERIFIED!</strong><br/>NFC ID: ${nfcIdStr}<br/>Face ID: ${matchedIdStr}<br/>Similarity: ${similarityPct.toFixed(1)}%`;
+                    status.innerHTML = `✅ Attendance marked for student <strong>${currentNfcId}</strong>`;
+                    status.className = 'text-lg font-medium text-green-600 bg-green-50 px-6 py-3 rounded-lg shadow-sm inline-block';
+                    await processAttendance(true, `Match confirmed: ${similarityPct.toFixed(1)}%`);
+                } else {
+                    // MISMATCH: NFC ID != Face ID (Possible Proxy)
+                    verificationStatus.innerHTML = `❌ <strong>ID MISMATCH!</strong><br/>NFC ID: ${nfcIdStr}<br/>Face ID: ${matchedIdStr}<br/>Similarity: ${similarityPct.toFixed(1)}%`;
+                    status.innerHTML = `⚠️ <strong>PROXY DETECTED!</strong> NFC card (${nfcIdStr}) does not match face (${matchedIdStr})`;
+                    status.className = 'text-lg font-medium text-red-600 bg-red-50 px-6 py-3 rounded-lg shadow-sm inline-block';
+                    await processAttendance(false, `Proxy: NFC=${nfcIdStr}, Face=${matchedIdStr}`);
+                }
+
+                setTimeout(closeCamera, 5000);
+
             } catch (error) {
                 console.error('Verification error:', error);
-                verificationStatus.textContent = 'Verification failed';
-                await processAttendance(false);
+                verificationStatus.textContent = '❌ Verification failed';
+                status.innerHTML = '❌ Error during verification. Please try again.';
+                status.className = 'text-lg font-medium text-red-600 bg-red-50 px-6 py-3 rounded-lg shadow-sm inline-block';
+                await processAttendance(false, 'Verification error');
+                setTimeout(closeCamera, 3000);
             }
         }
 
         // Process attendance result
-        async function processAttendance(isMatch) {
+        async function processAttendance(isMatch, reason = '') {
             const timestamp = new Date();
             const statusValue = isMatch ? 'present' : 'proxy';
 
@@ -389,61 +412,60 @@
             try {
                 await setDoc(doc(db, "attendance", `${currentNfcId}_${timestamp.getTime()}`), {
                     nfc_id: currentNfcId,
-                    timestamp: timestamp.toISOString(),
+                    registrationNumber: currentNfcId,
+                    timestamp: timestamp,
                     status: statusValue,
-                    verification_status: isMatch ? 'id_match' : 'id_mismatch'
+                    verification_status: isMatch ? 'id_match' : 'id_mismatch',
+                    reason: reason
                 });
 
                 // Update UI
-                updateAttendanceLog(currentNfcId, timestamp, statusValue);
+                updateAttendanceLog(currentNfcId, timestamp, statusValue, reason);
             } catch (error) {
                 console.error('Firebase error:', error);
-                verificationStatus.textContent = 'Error saving attendance';
+                if (verificationStatus) {
+                    verificationStatus.textContent = 'Error saving attendance';
+                }
             }
-
-            // Delay cleanup to show status
-            setTimeout(cleanup, 6000);
         }
 
         // Update attendance log in UI
-        function updateAttendanceLog(id, timestamp, status) {
+        function updateAttendanceLog(id, timestamp, status, reason = '') {
             const row = document.createElement('tr');
+            const reasonText = reason ? `<br/><small class="text-gray-500">${reason}</small>` : '';
             row.innerHTML = `
                 <td class="px-6 py-4">${id}</td>
                 <td class="px-6 py-4">${timestamp.toLocaleTimeString()}</td>
                 <td class="px-6 py-4">
                     <span class="status-badge ${status === 'present' ? 'present' : 'proxy'}">
-                        ${status === 'present' ? 'Present ✅' : 'Possible Proxy ❌'}
-                    </span>
+                        ${status === 'present' ? 'Present ✅' : 'Proxy/Failed ❌'}
+                    </span>${reasonText}
                 </td>
             `;
             document.getElementById('attendanceLog').prepend(row);
         }
 
-        // Cleanup function
-        function cleanup() {
+        // Close camera and reset
+        function closeCamera() {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
+                stream = null;
             }
             cameraModal.style.display = 'none';
+            countdownEl.style.display = 'none';
+            verificationStatus.textContent = 'Preparing camera...';
+            
+            // Reset state
             currentNfcId = null;
             isProcessing = false;
             startButton.disabled = false;
-
+            
             status.innerHTML = '📲 Ready to scan NFC card';
             status.className = 'text-lg font-medium text-gray-700 bg-white px-6 py-3 rounded-lg shadow-sm inline-block';
-
-            // Clear debug info after delay
-            setTimeout(() => {
-                document.getElementById('nfcDebug').textContent = '-';
-                document.getElementById('apiDebug').textContent = '-';
-                verificationStatus.textContent = 'Preparing camera...';
-                document.getElementById('countdown').style.display = 'none';
-            }, 3000);
         }
 
-        // Expose cleanup to window for the close button
-        window.cleanup = cleanup;
+        // Expose to window for button onclick
+        window.closeCamera = closeCamera;
     </script>
 </body>
 

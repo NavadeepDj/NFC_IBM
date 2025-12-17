@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArcFace Test</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-4xl mx-auto py-8 px-4">
+    <h1 class="text-2xl font-bold mb-4">ArcFace Test Page</h1>
+    <p class="text-sm text-gray-600 mb-4">Capture two photos and compare embeddings with the ArcFace backend.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="bg-white p-4 rounded shadow">
+        <h2 class="font-semibold mb-2">Capture A</h2>
+        <video id="videoA" autoplay class="w-full rounded border"></video>
+        <canvas id="canvasA" class="hidden"></canvas>
+        <div class="flex gap-2 mt-2">
+          <button id="startA" class="bg-blue-600 text-white px-3 py-2 rounded">Start Cam</button>
+          <button id="snapA" class="bg-green-600 text-white px-3 py-2 rounded" disabled>Capture A</button>
+        </div>
+        <img id="previewA" class="mt-2 rounded border hidden" />
+      </div>
+
+      <div class="bg-white p-4 rounded shadow">
+        <h2 class="font-semibold mb-2">Capture B</h2>
+        <video id="videoB" autoplay class="w-full rounded border"></video>
+        <canvas id="canvasB" class="hidden"></canvas>
+        <div class="flex gap-2 mt-2">
+          <button id="startB" class="bg-blue-600 text-white px-3 py-2 rounded">Start Cam</button>
+          <button id="snapB" class="bg-green-600 text-white px-3 py-2 rounded" disabled>Capture B</button>
+        </div>
+        <img id="previewB" class="mt-2 rounded border hidden" />
+      </div>
+    </div>
+
+    <div class="mt-6 flex gap-3">
+      <button id="compare" class="bg-purple-600 text-white px-4 py-2 rounded" disabled>Compare</button>
+      <span id="status" class="text-sm text-gray-700">Status: idle</span>
+    </div>
+
+    <pre id="result" class="mt-4 bg-white p-4 rounded shadow text-sm whitespace-pre-wrap"></pre>
+  </div>
+
+  <script>
+    const cams = {
+      A: { video: videoA, canvas: canvasA, start: startA, snap: snapA, preview: previewA, stream: null, data: null },
+      B: { video: videoB, canvas: canvasB, start: startB, snap: snapB, preview: previewB, stream: null, data: null },
+    };
+
+    const statusEl = document.getElementById('status');
+    const resultEl = document.getElementById('result');
+    const compareBtn = document.getElementById('compare');
+
+    function setStatus(msg) { statusEl.textContent = 'Status: ' + msg; }
+    function checkReady() {
+      compareBtn.disabled = !(cams.A.data && cams.B.data);
+    }
+
+    function setupCam(key) {
+      const c = cams[key];
+      c.start.onclick = async () => {
+        try {
+          c.stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          c.video.srcObject = c.stream;
+          c.snap.disabled = false;
+          setStatus('Camera ' + key + ' ready');
+        } catch (e) {
+          setStatus('Camera ' + key + ' error: ' + e);
+        }
+      };
+      c.snap.onclick = () => {
+        c.canvas.width = c.video.videoWidth;
+        c.canvas.height = c.video.videoHeight;
+        c.canvas.getContext('2d').drawImage(c.video, 0, 0);
+        const dataUrl = c.canvas.toDataURL('image/jpeg');
+        c.data = dataUrl;
+        c.preview.src = dataUrl;
+        c.preview.classList.remove('hidden');
+        setStatus('Captured ' + key);
+        checkReady();
+      };
+    }
+
+    setupCam('A');
+    setupCam('B');
+
+    compareBtn.onclick = async () => {
+      setStatus('Comparing...');
+      resultEl.textContent = '';
+      try {
+        const payloadA = { image: cams.A.data, nfc_id: 'testA' };
+        const payloadB = { image: cams.B.data, nfc_id: 'testB' };
+
+        const [embAResp, embBResp] = await Promise.all([
+          fetch('/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadA) }),
+          fetch('/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadB) }),
+        ]);
+        const embA = await embAResp.json();
+        const embB = await embBResp.json();
+
+        // If backend returns similarity/match to its DB, we still want a direct comparison:
+        // reuse backend match endpoint by swapping embeddings; but simpler: call /verify twice with same enrolled set
+        const combined = { embA, embB };
+        resultEl.textContent = JSON.stringify(combined, null, 2);
+        setStatus('Compare done (see similarity fields in responses)');
+      } catch (e) {
+        setStatus('Compare error: ' + e);
+      }
+    };
+  </script>
+</body>
+</html>
+
